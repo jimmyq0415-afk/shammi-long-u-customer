@@ -15,6 +15,7 @@ export default function App() {
   const [tableNumber, setTableNumber] = useState('')
   const [confirmedTable, setConfirmedTable] = useState('')
   const [menuItems, setMenuItems] = useState([])
+  const [menuCategories, setMenuCategories] = useState([])
   const [optionsMap, setOptionsMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -34,18 +35,25 @@ export default function App() {
   async function fetchMenuItems() {
     setLoading(true)
 
-    const [{ data: menuData, error: menuError }, { data: optionData, error: optionError }] =
-      await Promise.all([
-        supabase
-          .from('menu_items')
-          .select('*')
-          .eq('is_available', true)
-          .order('id', { ascending: true }),
-        supabase
-          .from('menu_item_options')
-          .select('*')
-          .order('id', { ascending: true }),
-      ])
+    const [
+      { data: menuData, error: menuError },
+      { data: optionData, error: optionError },
+      { data: categoryData, error: categoryError },
+    ] = await Promise.all([
+      supabase
+        .from('menu_items')
+        .select('*')
+        .eq('is_available', true)
+        .order('id', { ascending: true }),
+      supabase
+        .from('menu_item_options')
+        .select('*')
+        .order('id', { ascending: true }),
+      supabase
+        .from('menu_categories')
+        .select('*')
+        .order('sort_order', { ascending: true }),
+    ])
 
     setLoading(false)
 
@@ -59,6 +67,11 @@ export default function App() {
       return
     }
 
+    if (categoryError) {
+      setMessage('讀取分類失敗：' + categoryError.message)
+      return
+    }
+
     const groupedOptions = {}
     ;(optionData || []).forEach((option) => {
       if (!groupedOptions[option.menu_item_id]) groupedOptions[option.menu_item_id] = []
@@ -66,6 +79,7 @@ export default function App() {
     })
 
     setMenuItems(menuData || [])
+    setMenuCategories(categoryData || [])
     setOptionsMap(groupedOptions)
   }
 
@@ -104,8 +118,22 @@ export default function App() {
       grouped[category].push(item)
     })
 
-    return grouped
-  }, [menuItems])
+    const orderedGrouped = {}
+
+    menuCategories.forEach((category) => {
+      if (grouped[category.name]) {
+        orderedGrouped[category.name] = grouped[category.name]
+      }
+    })
+
+    Object.keys(grouped).forEach((category) => {
+      if (!orderedGrouped[category]) {
+        orderedGrouped[category] = grouped[category]
+      }
+    })
+
+    return orderedGrouped
+  }, [menuItems, menuCategories])
 
   const categories = useMemo(() => Object.keys(groupedMenu), [groupedMenu])
 
