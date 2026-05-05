@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './supabase'
 
 const customerColors = {
@@ -28,6 +28,8 @@ export default function App() {
 
   const [checkoutResult, setCheckoutResult] = useState('')
   const [submittingOrder, setSubmittingOrder] = useState(false)
+
+  const categoryRefs = useRef({})
 
   async function fetchMenuItems() {
     setLoading(true)
@@ -104,6 +106,19 @@ export default function App() {
 
     return grouped
   }, [menuItems])
+
+  const categories = useMemo(() => Object.keys(groupedMenu), [groupedMenu])
+
+  function scrollToCategory(category) {
+    const target = categoryRefs.current[category]
+
+    if (target) {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    }
+  }
 
   function openItemModal(item) {
     setSelectedItem(item)
@@ -285,8 +300,26 @@ export default function App() {
           <div style={styles.statusCard}>目前尚未上架任何商品</div>
         ) : (
           <div style={styles.menuWrap}>
+            <div style={styles.categoryTabs}>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  style={styles.categoryButton}
+                  onClick={() => scrollToCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
             {Object.entries(groupedMenu).map(([category, items]) => (
-              <section key={category} style={styles.categorySection}>
+              <section
+                key={category}
+                ref={(element) => {
+                  categoryRefs.current[category] = element
+                }}
+                style={styles.categorySection}
+              >
                 <h2 style={styles.categoryTitle}>{category}</h2>
 
                 <div style={styles.menuGrid}>
@@ -604,9 +637,34 @@ const styles = {
     display: 'grid',
     gap: '28px',
   },
+  categoryTabs: {
+    position: 'sticky',
+    top: '0',
+    zIndex: 10,
+    display: 'flex',
+    gap: '10px',
+    overflowX: 'auto',
+    padding: '12px 4px 16px',
+    background: `linear-gradient(180deg, ${customerColors.primary} 0%, rgba(255,255,255,0.92) 100%)`,
+    backdropFilter: 'blur(8px)',
+  },
+  categoryButton: {
+    flex: '0 0 auto',
+    border: `1px solid ${customerColors.secondary}`,
+    borderRadius: '999px',
+    padding: '10px 18px',
+    background: customerColors.white,
+    color: customerColors.text,
+    fontSize: '17px',
+    fontWeight: 700,
+    fontFamily: 'inherit',
+    cursor: 'pointer',
+    boxShadow: '0 6px 14px rgba(122,143,154,0.12)',
+  },
   categorySection: {
     display: 'grid',
     gap: '16px',
+    scrollMarginTop: '92px',
   },
   categoryTitle: {
     margin: 0,
